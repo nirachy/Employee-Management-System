@@ -10,6 +10,8 @@
 // - ใช้ได้ทันทีในโปรเจกต์ Vite + React
 // - เจ๊สามารถแยกไฟล์ภายหลังได้ตามต้องการ
 
+import React, { useState, useEffect } from "react";
+
 // --------------------------------------------------
 // supabase.ts (mock structure / replace with your real one)
 // --------------------------------------------------
@@ -34,66 +36,167 @@ export interface Employee {
   status: string;
 }
 
-export const DOCUMENT_TYPES = ["1.ใบสมัครงาน", "2.สำเนาบัตรประชาชน", "3.สำเนาทะเบียนบ้าน", "4.วุฒิการศึกษา"];
+export const DOCUMENT_TYPES = [
+  "1.ใบสมัครงาน",
+  "2.สำเนาบัตรประชาชน",
+  "3.สำเนาทะเบียนบ้าน",
+  "4.วุฒิการศึกษา",
+];
 
+// mock supabase (ให้โค้ดรันได้เฉย ๆ)
+// ถ้าใช้ของจริงให้ import supabase จริงมาแทนตัวนี้
 export const supabase = {
-  from: () => ({
-    select: () => ({ eq: () => ({ data: [], error: null }) }),
-    insert: () => ({ error: null }),
-    update: () => ({ error: null }),
-    delete: () => ({ error: null })
-  })
+  from: (_table: string) => ({
+    select: (_cols: string = "*") => ({
+      eq: (_field: string, _value: any) =>
+        Promise.resolve({ data: [] as Document[], error: null }),
+    }),
+    insert: (_payload: any) =>
+      Promise.resolve({ data: null, error: null }),
+    update: (_payload: any) => ({
+      eq: (_field: string, _value: any) =>
+        Promise.resolve({ data: null, error: null }),
+    }),
+    delete: () => ({
+      eq: (_field: string, _value: any) =>
+        Promise.resolve({ data: null, error: null }),
+    }),
+  }),
 };
 
 // --------------------------------------------------
 // DocumentFormModal.tsx
 // --------------------------------------------------
 
-export function DocumentFormModal({ document, onClose, onSave }: any) {
+export function DocumentFormModal({
+  document,
+  onClose,
+  onSave,
+}: any) {
   const isEdit = !!document;
+
+  const defaultForm = {
+    doc_type: DOCUMENT_TYPES[0],
+    doc_number: 1,
+    sender: "",
+    receiver: "",
+    date_filled: "",
+    date_sent: "",
+    status: "active",
+  };
+
   const [form, setForm] = useState(
-    document || {
-      doc_type: DOCUMENT_TYPES[0],
-      doc_number: 1,
-      sender: "",
-      receiver: "",
-      date_filled: "",
-      date_sent: "",
-      status: "active",
-    }
+    document || defaultForm
   );
+
+  // ถ้าเปลี่ยน document (add → edit / เปลี่ยนเอกสาร) ให้ reset ค่า
+  useEffect(() => {
+    setForm(document || defaultForm);
+  }, [document]);
 
   const update = (k: string, v: any) => setForm({ ...form, [k]: v });
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
       <div className="bg-white w-full max-w-lg rounded-xl p-6 shadow-lg">
-        <h2 className="text-xl font-bold mb-4">{isEdit ? "Edit Document" : "Add Document"}</h2>
+        <h2 className="text-xl font-bold mb-4">
+          {isEdit ? "Edit Document" : "Add Document"}
+        </h2>
 
         <div className="space-y-3">
-          <select className="w-full border rounded p-2" value={form.doc_type} onChange={(e) => update("doc_type", e.target.value)}>
-            {DOCUMENT_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium mb-1">ประเภทเอกสาร</label>
+            <select
+              className="w-full border rounded p-2"
+              value={form.doc_type}
+              onChange={(e) => update("doc_type", e.target.value)}
+            >
+              {DOCUMENT_TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </div>
 
-          <input className="w-full border rounded p-2" type="number" value={form.doc_number} onChange={(e) => update("doc_number", Number(e.target.value))} />
+          <div>
+            <label className="block text-sm font-medium mb-1">เลขที่เอกสาร</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={form.doc_number}
+              onChange={(e) =>
+                update("doc_number", Number(e.target.value) || 0)
+              }
+            />
+          </div>
 
-          <input className="w-full border rounded p-2" placeholder="Sender" value={form.sender} onChange={(e) => update("sender", e.target.value)} />
-          <input className="w-full border rounded p-2" placeholder="Receiver" value={form.receiver} onChange={(e) => update("receiver", e.target.value)} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Sender</label>
+              <input
+                className="w-full border rounded p-2"
+                placeholder="Sender"
+                value={form.sender}
+                onChange={(e) => update("sender", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Receiver</label>
+              <input
+                className="w-full border rounded p-2"
+                placeholder="Receiver"
+                value={form.receiver}
+                onChange={(e) => update("receiver", e.target.value)}
+              />
+            </div>
+          </div>
 
-          <input type="date" className="w-full border rounded p-2" value={form.date_filled} onChange={(e) => update("date_filled", e.target.value)} />
-          <input type="date" className="w-full border rounded p-2" value={form.date_sent} onChange={(e) => update("date_sent", e.target.value)} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">วันที่กรอก (Filled)</label>
+              <input
+                type="date"
+                className="w-full border rounded p-2"
+                value={form.date_filled}
+                onChange={(e) => update("date_filled", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">วันที่ส่ง (Sent)</label>
+              <input
+                type="date"
+                className="w-full border rounded p-2"
+                value={form.date_sent}
+                onChange={(e) => update("date_sent", e.target.value)}
+              />
+            </div>
+          </div>
 
-          <select className="w-full border rounded p-2" value={form.status} onChange={(e) => update("status", e.target.value)}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
-          </select>
+          <div>
+            <label className="block text-sm font-medium mb-1">สถานะ</label>
+            <select
+              className="w-full border rounded p-2"
+              value={form.status}
+              onChange={(e) => update("status", e.target.value)}
+            >
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <button className="px-4 py-2 bg-gray-200 rounded" onClick={onClose}>Cancel</button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => onSave(form)}>Save</button>
+          <button
+            className="px-4 py-2 bg-gray-200 rounded"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+            onClick={() => onSave(form)}
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
@@ -106,35 +209,72 @@ export function DocumentFormModal({ document, onClose, onSave }: any) {
 
 export function EmployeeDocumentsModal({ employee, onClose }: any) {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const sortDocs = (docs: Document[]) => docs.sort((a, b) => a.doc_number - b.doc_number);
+  // state ใหม่ เอาไว้ควบคุมเปิด/ปิดฟอร์ม
+  const [showForm, setShowForm] = useState(false);
+
+  const sortDocs = (docs: Document[]) =>
+    docs.sort((a, b) => a.doc_number - b.doc_number);
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("documents").select("*").eq("employee_id", employee.employee_id);
+    const { data } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("employee_id", employee.employee_id);
+
     setDocuments(sortDocs(data || []));
     setLoading(false);
   };
 
-  const saveDoc = async (form: Document) => {
-    if (selected) {
-      await supabase.from("documents").update(form).eq("id", selected.id);
+  // form ที่ส่งมาจาก DocumentFormModal ใช้ any ไปก่อน (ง่ายสุด)
+  const saveDoc = async (form: any) => {
+    if (selected && selected.id) {
+      // edit
+      await supabase
+        .from("documents")
+        .update(form)
+        .eq("id", selected.id);
     } else {
-      await supabase.from("documents").insert({ ...form, employee_id: employee.employee_id });
+      // create
+      await supabase
+        .from("documents")
+        .insert({ ...form, employee_id: employee.employee_id });
     }
+
     setSelected(null);
+    setShowForm(false);
     load();
   };
 
   const remove = async (id: string) => {
+    const ok = window.confirm("ต้องการลบเอกสารนี้หรือไม่?");
+    if (!ok) return;
+
     await supabase.from("documents").delete().eq("id", id);
     load();
+  };
+
+  const handleAddClick = () => {
+    setSelected(null);
+    setShowForm(true);
+  };
+
+  const handleEditClick = (doc: Document) => {
+    setSelected(doc);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setSelected(null);
   };
 
   return (
@@ -143,14 +283,25 @@ export function EmployeeDocumentsModal({ employee, onClose }: any) {
         <div className="flex justify-between items-center mb-4 border-b pb-4">
           <div>
             <h1 className="text-2xl font-bold">{employee.name}</h1>
-            <p className="text-gray-600 text-sm">ID: {employee.employee_id} | Division: {employee.division}</p>
+            <p className="text-gray-600 text-sm">
+              ID: {employee.employee_id} | Division: {employee.division}
+            </p>
           </div>
-          <button className="text-gray-600" onClick={onClose}>✕</button>
+          <button className="text-gray-600" onClick={onClose}>
+            ✕
+          </button>
         </div>
 
         <div className="flex justify-between mb-4">
-          <h2 className="font-semibold text-lg">Documents ({documents.length})</h2>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => setSelected(null)}>+ Add Document</button>
+          <h2 className="font-semibold text-lg">
+            Documents ({documents.length})
+          </h2>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+            onClick={handleAddClick}
+          >
+            + Add Document
+          </button>
         </div>
 
         <div className="overflow-y-auto flex-1 space-y-3">
@@ -160,17 +311,36 @@ export function EmployeeDocumentsModal({ employee, onClose }: any) {
             <p className="text-center py-6 text-gray-500">No documents</p>
           ) : (
             documents.map((d) => (
-              <div key={d.id} className="border p-4 rounded-lg bg-gray-50">
+              <div
+                key={d.id}
+                className="border p-4 rounded-lg bg-gray-50"
+              >
                 <div className="flex justify-between">
                   <div>
                     <p className="font-semibold">{d.doc_type}</p>
-                    <p className="text-sm text-gray-600">Sender: {d.sender} | Receiver: {d.receiver}</p>
-                    <p className="text-sm text-gray-600">Filled: {d.date_filled} | Sent: {d.date_sent}</p>
-                    <p className="text-sm text-gray-600">Status: {d.status}</p>
+                    <p className="text-sm text-gray-600">
+                      Sender: {d.sender} | Receiver: {d.receiver}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Filled: {d.date_filled} | Sent: {d.date_sent}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Status: {d.status}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2 text-sm">
-                    <button className="px-3 py-1 bg-yellow-500 text-white rounded" onClick={() => setSelected(d)}>Edit</button>
-                    <button className="px-3 py-1 bg-red-600 text-white rounded" onClick={() => remove(d.id!)}>Delete</button>
+                    <button
+                      className="px-3 py-1 bg-yellow-500 text-white rounded"
+                      onClick={() => handleEditClick(d)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-red-600 text-white rounded"
+                      onClick={() => d.id && remove(d.id)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -178,18 +348,11 @@ export function EmployeeDocumentsModal({ employee, onClose }: any) {
           )}
         </div>
 
-        {selected !== null && (
+        {/* ฟอร์มจะโผล่เฉพาะตอน showForm = true */}
+        {showForm && (
           <DocumentFormModal
             document={selected}
-            onClose={() => setSelected(null)}
-            onSave={saveDoc}
-          />
-        )}
-
-        {selected === null && (
-          <DocumentFormModal
-            document={null}
-            onClose={() => setSelected(null)}
+            onClose={handleCloseForm}
             onSave={saveDoc}
           />
         )}
