@@ -1,0 +1,203 @@
+// ===============================
+// FULL EMPLOYEE DOCUMENT SYSTEM
+// NO shadcn/ui
+// ALL COMPONENTS IN ONE FILE (SEPARATED BY COMMENTS)
+// ===============================
+
+// NOTE:
+// - ใช้ Tailwind ล้วน
+// - ไม่มี import ที่หาย
+// - ใช้ได้ทันทีในโปรเจกต์ Vite + React
+// - เจ๊สามารถแยกไฟล์ภายหลังได้ตามต้องการ
+
+// --------------------------------------------------
+// supabase.ts (mock structure / replace with your real one)
+// --------------------------------------------------
+
+export interface Document {
+  id?: string;
+  employee_id: string;
+  doc_type: string;
+  doc_number: number;
+  sender: string;
+  receiver: string;
+  date_filled: string;
+  date_sent: string;
+  status: string;
+  created_at?: string;
+}
+
+export interface Employee {
+  employee_id: string;
+  name: string;
+  division: string;
+  status: string;
+}
+
+export const DOCUMENT_TYPES = ["1.ใบสมัครงาน", "2.สำเนาบัตรประชาชน", "3.สำเนาทะเบียนบ้าน", "4.วุฒิการศึกษา"];
+
+export const supabase = {
+  from: () => ({
+    select: () => ({ eq: () => ({ data: [], error: null }) }),
+    insert: () => ({ error: null }),
+    update: () => ({ error: null }),
+    delete: () => ({ error: null })
+  })
+};
+
+// --------------------------------------------------
+// DocumentFormModal.tsx
+// --------------------------------------------------
+
+export function DocumentFormModal({ document, onClose, onSave }: any) {
+  const isEdit = !!document;
+  const [form, setForm] = useState(
+    document || {
+      doc_type: DOCUMENT_TYPES[0],
+      doc_number: 1,
+      sender: "",
+      receiver: "",
+      date_filled: "",
+      date_sent: "",
+      status: "active",
+    }
+  );
+
+  const update = (k: string, v: any) => setForm({ ...form, [k]: v });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white w-full max-w-lg rounded-xl p-6 shadow-lg">
+        <h2 className="text-xl font-bold mb-4">{isEdit ? "Edit Document" : "Add Document"}</h2>
+
+        <div className="space-y-3">
+          <select className="w-full border rounded p-2" value={form.doc_type} onChange={(e) => update("doc_type", e.target.value)}>
+            {DOCUMENT_TYPES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+
+          <input className="w-full border rounded p-2" type="number" value={form.doc_number} onChange={(e) => update("doc_number", Number(e.target.value))} />
+
+          <input className="w-full border rounded p-2" placeholder="Sender" value={form.sender} onChange={(e) => update("sender", e.target.value)} />
+          <input className="w-full border rounded p-2" placeholder="Receiver" value={form.receiver} onChange={(e) => update("receiver", e.target.value)} />
+
+          <input type="date" className="w-full border rounded p-2" value={form.date_filled} onChange={(e) => update("date_filled", e.target.value)} />
+          <input type="date" className="w-full border rounded p-2" value={form.date_sent} onChange={(e) => update("date_sent", e.target.value)} />
+
+          <select className="w-full border rounded p-2" value={form.status} onChange={(e) => update("status", e.target.value)}>
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button className="px-4 py-2 bg-gray-200 rounded" onClick={onClose}>Cancel</button>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------
+// EmployeeDocumentsModal.tsx
+// --------------------------------------------------
+
+export function EmployeeDocumentsModal({ employee, onClose }: any) {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [selected, setSelected] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const sortDocs = (docs: Document[]) => docs.sort((a, b) => a.doc_number - b.doc_number);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("documents").select("*").eq("employee_id", employee.employee_id);
+    setDocuments(sortDocs(data || []));
+    setLoading(false);
+  };
+
+  const saveDoc = async (form: Document) => {
+    if (selected) {
+      await supabase.from("documents").update(form).eq("id", selected.id);
+    } else {
+      await supabase.from("documents").insert({ ...form, employee_id: employee.employee_id });
+    }
+    setSelected(null);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("documents").delete().eq("id", id);
+    load();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white w-full max-w-4xl rounded-xl shadow-xl p-6 max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center mb-4 border-b pb-4">
+          <div>
+            <h1 className="text-2xl font-bold">{employee.name}</h1>
+            <p className="text-gray-600 text-sm">ID: {employee.employee_id} | Division: {employee.division}</p>
+          </div>
+          <button className="text-gray-600" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="flex justify-between mb-4">
+          <h2 className="font-semibold text-lg">Documents ({documents.length})</h2>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => setSelected(null)}>+ Add Document</button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 space-y-3">
+          {loading ? (
+            <p className="text-center py-6">Loading...</p>
+          ) : documents.length === 0 ? (
+            <p className="text-center py-6 text-gray-500">No documents</p>
+          ) : (
+            documents.map((d) => (
+              <div key={d.id} className="border p-4 rounded-lg bg-gray-50">
+                <div className="flex justify-between">
+                  <div>
+                    <p className="font-semibold">{d.doc_type}</p>
+                    <p className="text-sm text-gray-600">Sender: {d.sender} | Receiver: {d.receiver}</p>
+                    <p className="text-sm text-gray-600">Filled: {d.date_filled} | Sent: {d.date_sent}</p>
+                    <p className="text-sm text-gray-600">Status: {d.status}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 text-sm">
+                    <button className="px-3 py-1 bg-yellow-500 text-white rounded" onClick={() => setSelected(d)}>Edit</button>
+                    <button className="px-3 py-1 bg-red-600 text-white rounded" onClick={() => remove(d.id!)}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {selected !== null && (
+          <DocumentFormModal
+            document={selected}
+            onClose={() => setSelected(null)}
+            onSave={saveDoc}
+          />
+        )}
+
+        {selected === null && (
+          <DocumentFormModal
+            document={null}
+            onClose={() => setSelected(null)}
+            onSave={saveDoc}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------
+// END OF FILE
+// --------------------------------------------------
